@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: eip-sc-automation-backend-svc
+spec:
+  selector:
+    app: eip-sc-automation-backend
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 5000

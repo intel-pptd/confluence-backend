@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eip-sc-automation-backend-ingress
+spec:
+  rules:
+    #replace the host with the DNS alias that you used in DDI
+    - host: pptd-automations-backend.intel.com
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: eip-sc-automation-backend-svc
+                port:
+                  number: 443
+  tls:
+    - hosts:
+        - pptd-automations-backend.intel.com
+      secretName: eip-sc-automation-backend-cert-tls

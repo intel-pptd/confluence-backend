@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eip-sc-automation-backend
+  namespace: pptd-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eip-sc-automation-backend
+  template:
+    metadata:
+      labels:
+        app: eip-sc-automation-backend
+    spec:
+      containers:
+        - name: eip-sc-automation-backend-container
+          image: amr-registry.caas.intel.com/pptd-prod/eip-sc-automation-backend:v1
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
+          envFrom:
+            - secretRef:
+                name: eip-sc-automation-backend-secret
+      imagePullSecrets:
+        - name: regcred
