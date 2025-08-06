@@ -44,7 +44,7 @@ const upload = multer({
 app.use(cors({ origin: '*' })); // Allow all origins
 
 // Store the base domain separately
-//const BASE_DOMAIN = "https://sc-test-17-dev.ipaas.intel.com/eip-sc-wiki-content-generate-api/v1";
+// const BASE_DOMAIN = "https://sc-test-17-dev.ipaas.intel.com/eip-sc-wiki-content-generate-api/v1";
 const BASE_DOMAIN = process.env.BASE_DOMAIN;
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
