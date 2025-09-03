@@ -270,7 +270,7 @@ app.post("/generate-confluence", upload.any(), async (req, res) => {
           ...formData.getHeaders(),
         },
         httpsAgent: httpsAgent,
-        timeout: 30000 // 30 second timeout for large files
+        timeout: 300000 // 5 minute timeout for large files
       }
     );
 
