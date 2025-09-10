@@ -49,8 +49,8 @@ const upload = multer({
 });
 
 // Store the base domain separately
-//const BASE_DOMAIN = process.env.BASE_DOMAIN;
-const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+const BASE_DOMAIN = process.env.BASE_DOMAIN;
+//const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
 const GITORGS_PATH = "/mulesoftorgs";
