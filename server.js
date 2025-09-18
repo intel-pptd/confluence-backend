@@ -50,8 +50,8 @@ const upload = multer({
 });
 
 // Store the base domain separately
-//const BASE_DOMAIN = process.env.BASE_DOMAIN;
-const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+const BASE_DOMAIN = process.env.BASE_DOMAIN;
+//const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
 const GITORGS_PATH = "/mulesoftorgs";
@@ -271,7 +271,7 @@ app.post("/generate-confluence", upload.any(), async (req, res) => {
           ...formData.getHeaders(),
         },
         httpsAgent: httpsAgent,
-        timeout: 30000 // 30 second timeout for large files
+        timeout: 300000 // 5 minute timeout for large files
       }
     );
 
