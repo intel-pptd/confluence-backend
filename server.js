@@ -17,8 +17,9 @@ const httpsAgent = new https.Agent({
 const app = express();
 
 // Add body parsing middleware BEFORE multer configuration
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json({ limit: '5gb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '5gb' }));
+app.use(cors({ origin: 'https://pptd-automations.intel.com'}));
 app.use(cors({ origin: '*' })); // Allow all origins
 
 // Configure multer for file uploads
