@@ -20,6 +20,7 @@ const app = express();
 app.use(bodyParser.json({ limit: '5gb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5gb' }));
 app.use(cors({ origin: 'https://pptd-automations.intel.com'}));
+app.use(cors({ origin: 'http://localhost:3000'}));
 app.use(cors({ origin: '*' })); // Allow all origins
 
 // Configure multer for file uploads
@@ -50,12 +51,14 @@ const upload = multer({
 });
 
 // Store the base domain separately
-const BASE_DOMAIN = process.env.BASE_DOMAIN;
-//const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+//const BASE_DOMAIN = process.env.BASE_DOMAIN;
+const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
 const GITORGS_PATH = "/mulesoftorgs";
 const WIKI_SPACE_KEYS_PATH = "/wikispace"; // Assuming this is the path for wiki space keys
+const WIKI_SPACE_LIST_PATH = "/spacelist"; // Assuming this is the path for wiki space keys
+const GENERIC_WIKI_GENERATE_PATH = "/genericWiki";
 
 // Endpoint to call Mulesoft API and generate Confluence page with file attachments
 app.post("/generate-confluence", upload.any(), async (req, res) => {
@@ -368,6 +371,37 @@ app.get('/wikispacekeys', async (req, res) => {
     const response = await axios.get(`${BASE_DOMAIN}${WIKI_SPACE_KEYS_PATH}`, {
       httpsAgent: httpsAgent // Add httpsAgent here too
     });
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//get wiki space keys list
+app.get('/spacelist', async (req, res) => {
+  try {
+    const response = await axios.get(`${BASE_DOMAIN}${WIKI_SPACE_LIST_PATH}`, {
+      httpsAgent: httpsAgent // Add httpsAgent here too
+    });
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//Generic wiki generator 
+app.post('/genericWiki', async (req, res) => {
+  const authHeader = req.headers["Authorization"];
+  try {
+    const response = await axios.post(`${BASE_DOMAIN}${GENERIC_WIKI_GENERATE_PATH}`, 
+      req.body, {      
+      httpsAgent: httpsAgent, // Add httpsAgent here too
+      headers:{
+                "Authorization": authHeader,
+                ...req.headers
+                },
+    }
+  );
     res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: error.message });
