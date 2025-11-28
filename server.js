@@ -14,14 +14,40 @@ const httpsAgent = new https.Agent({
   rejectUnauthorized: false // Only for internal Mulesoft API
 });
 
+// Store the base domain separately
+//const BASE_DOMAIN = process.env.BASE_DOMAIN;
+const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+// Define paths
+const WIKI_GENERATE_PATH = "/wikigenerate";
+const GITORGS_PATH = "/mulesoftorgs";
+const WIKI_SPACE_KEYS_PATH = "/wikispace"; // Assuming this is the path for wiki space keys
+const WIKI_SPACE_LIST_PATH = "/spacelist"; // Assuming this is the path for wiki space keys
+const GENERIC_WIKI_GENERATE_PATH = "/genericWiki";
+
 const app = express();
+const allowedOrigins = [
+  'http://localhost:3000',       //  local dev
+   BASE_DOMAIN // server
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 
 // Add body parsing middleware BEFORE multer configuration
 app.use(bodyParser.json({ limit: '5gb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5gb' }));
-app.use(cors({ origin: 'https://pptd-automations.intel.com'}));
-app.use(cors({ origin: 'http://localhost:3000'}));
-app.use(cors({ origin: '*' })); // Allow all origins
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -49,16 +75,6 @@ const upload = multer({
     }
   }
 });
-
-// Store the base domain separately
-//const BASE_DOMAIN = process.env.BASE_DOMAIN;
-const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
-// Define paths
-const WIKI_GENERATE_PATH = "/wikigenerate";
-const GITORGS_PATH = "/mulesoftorgs";
-const WIKI_SPACE_KEYS_PATH = "/wikispace"; // Assuming this is the path for wiki space keys
-const WIKI_SPACE_LIST_PATH = "/spacelist"; // Assuming this is the path for wiki space keys
-const GENERIC_WIKI_GENERATE_PATH = "/genericWiki";
 
 // Endpoint to call Mulesoft API and generate Confluence page with file attachments
 app.post("/generate-confluence", upload.any(), async (req, res) => {
@@ -391,7 +407,7 @@ app.get('/spacelist', async (req, res) => {
 
 //Generic wiki generator 
 app.post('/genericWiki', async (req, res) => {
-  const authHeader = req.headers["Authorization"];
+  const authHeader = req.headers["Authorization"];  
   try {
     const response = await axios.post(`${BASE_DOMAIN}${GENERIC_WIKI_GENERATE_PATH}`, 
       req.body, {      
