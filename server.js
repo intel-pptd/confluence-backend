@@ -11,12 +11,16 @@ const fs = require("fs");
 
 // Create a custom HTTPS agent for internal API calls only
 const httpsAgent = new https.Agent({
-  rejectUnauthorized: false // Only for internal Mulesoft API
+  rejectUnauthorized: false, // Only for internal Mulesoft API
+  keepAlive: true,
+  timeout: 300000,
+  maxSockets: 50
 });
 
 // Store the base domain separately
-//const BASE_DOMAIN = process.env.BASE_DOMAIN;
-const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+const BASE_DOMAIN = process.env.BASE_DOMAIN;
+//const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+//const BASE_DOMAIN = "https://sc-test-17-dev.ipaas.intel.com/eip-sc-wiki-content-generate-api/v1";
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
 const GITORGS_PATH = "/mulesoftorgs";
@@ -80,7 +84,7 @@ const upload = multer({
 app.post("/generate-confluence", upload.any(), async (req, res) => {
   console.log("=== INCOMING REQUEST ===");
   // console.log("Request body:", JSON.stringify(req.body, null, 2));
-   console.log("Body:", req.body);
+  console.log("Body:", req.body);
   console.log("Uploaded files:", req.files?.map(file => ({
     fieldname: file.fieldname,
     originalname: file.originalname,
@@ -396,31 +400,167 @@ app.get('/wikispacekeys', async (req, res) => {
 //get wiki space keys list
 app.get('/spacelist', async (req, res) => {
   try {
+    const authHeader = req.headers['authorization'];
     const response = await axios.get(`${BASE_DOMAIN}${WIKI_SPACE_LIST_PATH}`, {
-      httpsAgent: httpsAgent // Add httpsAgent here too
+      httpsAgent: httpsAgent,
+      headers: authHeader ? { Authorization: authHeader } : undefined,
+      proxy: false
     });
     res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const status = error.response?.status || 500;
+    const details = error.response?.data || { message: error.message };
+    res.status(status).json({ error: 'Upstream error', details });
   }
 });
 
 //Generic wiki generator 
-app.post('/genericWiki', async (req, res) => {
-  const authHeader = req.headers["Authorization"];  
+// Generic wiki generator: only Communication files, tailored fields
+app.post('/genericWiki', upload.any(), async (req, res) => {
+  console.log("=== INCOMING /genericWiki REQUEST ===");
+  console.log("Body:", req.body);
+  console.log("Uploaded files:", req.files?.map(file => ({
+    fieldname: file.fieldname,
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size,
+    path: file.path
+  })));
+
   try {
-    const response = await axios.post(`${BASE_DOMAIN}${GENERIC_WIKI_GENERATE_PATH}`, 
-      req.body, {      
-      httpsAgent: httpsAgent, // Add httpsAgent here too
-      headers:{
-                "Authorization": authHeader,
-                ...req.headers
-                },
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      return res.status(401).json({ status: 'error', error: 'Unauthorized', message: 'Missing Authorization header' });
     }
-  );
-    res.json(response.data);
+
+    // Build pageData for generic wiki
+    const {
+      // excluded: apiType, fetchPropertyFile, selectedGitOrg, appName
+      wikiSpaceKey,
+      pageToBeCreatedTitle,
+      pageToBeCreatedParentPageTitle,
+      integrationDevTeam,
+      integrationDevTeamEmail,
+      businessTeam,
+      businessTeamEmail,
+      // new fields
+      documentType,
+      productName,
+      productDescription,
+      audience,
+      purpose,
+      tone,
+      outputFormat
+    } = req.body || {};
+
+    if (!pageToBeCreatedTitle) {
+      return res.status(400).json({ status: 'error', message: 'pageToBeCreatedTitle is required' });
+    }
+    if (!wikiSpaceKey) {
+      return res.status(400).json({ status: 'error', message: 'wikiSpaceKey is required' });
+    }
+
+    const formData = new FormData();
+    const pageData = {
+      wikiSpaceKey,
+      pageToBeCreatedTitle,
+      pageToBeCreatedParentPageTitle,
+      integrationDevTeam,
+      integrationDevTeamEmail,
+      businessTeam,
+      businessTeamEmail,
+      documentType,
+      productName,
+      productDescription,
+      audience,
+      purpose,
+      tone,
+      outputFormat,
+      hasFiles: req.files && req.files.length > 0
+    };
+
+    console.log("=== GENERIC PAGE DATA ===");
+    console.log(JSON.stringify(pageData, null, 2));
+    formData.append('data', JSON.stringify(pageData));
+
+    // Only communication files are allowed for generic wiki
+    if (req.files && req.files.length > 0) {
+      const commFiles = req.files.filter(file => file.fieldname === 'commFiles');
+      if (commFiles.length > 0) {
+        console.log("Communication Files:");
+        commFiles.forEach((file) => {
+          console.log(`  Communication File: ${file.originalname}`);
+          formData.append('commFiles', fs.createReadStream(file.path), {
+            filename: file.originalname,
+            contentType: file.mimetype
+          });
+        });
+      } else {
+        console.log("No communication files found in request");
+      }
+    } else {
+      console.log("=== NO FILES ATTACHED FOR GENERIC WIKI ===");
+    }
+
+    console.log("=== SENDING GENERIC REQUEST TO MULESOFT ===");
+    console.log("URL:", `${BASE_DOMAIN}${GENERIC_WIKI_GENERATE_PATH}`);
+    console.log("Headers:", formData.getHeaders());
+
+    const response = await axios.post(
+      `${BASE_DOMAIN}${GENERIC_WIKI_GENERATE_PATH}`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: authHeader
+        },
+        httpsAgent: httpsAgent,
+        // Disable proxy to avoid corporate proxy interfering with TLS handshake
+        proxy: false,
+        timeout: 300000
+      }
+    );
+
+    console.log("=== MULESOFT GENERIC RESPONSE ===");
+    console.log("Status:", response.status);
+    console.log("Data:", response.data);
+
+    const pageUrl = response.data?.pageURL ||
+                    response.data?.pageUrl ||
+                    response.data?.confluencePageUrl ||
+                    response.data?.url ||
+                    `https://wiki.intel.com/display/${wikiSpaceKey}/${pageToBeCreatedTitle?.replace(/\s+/g, '+')}`;
+
+    // Clean up uploaded files
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        try { fs.unlinkSync(file.path); } catch (_) {}
+      });
+    }
+
+    return res.status(200).json({ message: 'Generic wiki page generated successfully', pageUrl });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("=== ERROR CALLING MULESOFT GENERIC API ===");
+    console.error("Error message:", error.message);
+
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => { try { fs.unlinkSync(file.path); } catch (_) {} });
+    }
+
+    if (error.response) {
+      console.error("Response data:", error.response.data);
+      console.error("Response status:", error.response.status);
+      console.error("Response headers:", error.response.headers);
+      return res.status(error.response.status).json({ 
+        status: 'error',
+        error: 'Mulesoft API error',
+        details: error.response.data,
+        message: error.message
+      });
+    } else if (error.request) {
+      return res.status(500).json({ status: 'error', error: 'No response from Mulesoft API', message: 'Network or timeout error' });
+    }
+    return res.status(500).json({ status: 'error', error: 'Failed to generate Generic wiki page', message: error.message });
   }
 });
 
