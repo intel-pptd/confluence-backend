@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: eip-sc-automation-backend-container
-          image: amr-registry.caas.intel.com/pptd-prod/eip-sc-automation-backend:v1
+          image: amr-registry.caas.intel.com/pptd-prod/eip-sc-automation-backend:v3.3
           ports:
             - containerPort: 5000
           resources:
