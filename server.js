@@ -18,8 +18,8 @@ const httpsAgent = new https.Agent({
 });
 
 // Store the base domain separately
-const BASE_DOMAIN = process.env.BASE_DOMAIN;
-//const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
+//const BASE_DOMAIN = process.env.BASE_DOMAIN;
+const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
 //const BASE_DOMAIN = "https://sc-test-17-dev.ipaas.intel.com/eip-sc-wiki-content-generate-api/v1";
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
@@ -27,6 +27,7 @@ const GITORGS_PATH = "/mulesoftorgs";
 const WIKI_SPACE_KEYS_PATH = "/wikispace"; // Assuming this is the path for wiki space keys
 const WIKI_SPACE_LIST_PATH = "/spacelist"; // Assuming this is the path for wiki space keys
 const GENERIC_WIKI_GENERATE_PATH = "/genericWiki";
+const LOGIN_PATH = "/user"; // Upstream login/user info path
 
 const app = express();
 const allowedOrigins = [
@@ -411,6 +412,39 @@ app.get('/spacelist', async (req, res) => {
     const status = error.response?.status || 500;
     const details = error.response?.data || { message: error.message };
     res.status(status).json({ error: 'Upstream error', details });
+  }
+});
+
+// Login endpoint: forwards Authorization to MuleSoft to fetch user info
+// Frontend calls: GET /genWikiLogin with Authorization: Basic base64(user:pass)
+app.get('/genWikiLogin', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      return res.status(401).json({ status: 'error', error: 'Unauthorized', message: 'Missing Authorization header' });
+    }
+
+    // Append username from frontend as query param if provided
+    const { username } = req.query || {};
+    const loginUrl = username
+      ? `${WIKI_LOGIN}${LOGIN_PATH}?username=${encodeURIComponent(username)}`
+      : `${WIKI_LOGIN}${LOGIN_PATH}`;
+
+    const response = await axios.get(loginUrl, {
+      httpsAgent: httpsAgent,
+      headers: { Authorization: authHeader, Accept: 'application/json' },
+      proxy: false,
+      timeout: 60000
+    });
+
+    // Normalize a minimal response for FE
+    const data = response.data || {};
+    const displayName = data.displayName || data.user?.displayName || data.name || data.username;
+    res.status(200).json({ displayName, user: data });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const details = error.response?.data || { message: error.message };
+    res.status(status).json({ error: 'Upstream login error', details });
   }
 });
 
