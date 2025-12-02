@@ -32,11 +32,14 @@ const LOGIN_PATH = "/user"; // Upstream login/user info path
 const app = express();
 const allowedOrigins = [
   'http://localhost:3000',       //  local dev
-   BASE_DOMAIN // server
+   BASE_DOMAIN, // server
+   'https://pptd-automations.intel.com/',
+   'https://pptd-automations.intel.com'
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
+    console.log("origin:", origin)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
