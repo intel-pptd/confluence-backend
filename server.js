@@ -18,9 +18,9 @@ const httpsAgent = new https.Agent({
 });
 
 // Store the base domain separately
-//const BASE_DOMAIN = process.env.BASE_DOMAIN;
+const BASE_DOMAIN = process.env.BASE_DOMAIN;
 //const BASE_DOMAIN = "https://localhost:443/eip-sc-wiki-content-generate-api/v1";
-const BASE_DOMAIN = "https://sc-test-17-dev.ipaas.intel.com/eip-sc-wiki-content-generate-api/v1";
+//const BASE_DOMAIN = "https://sc-test-17-dev.ipaas.intel.com/eip-sc-wiki-content-generate-api/v1";
 // Define paths
 const WIKI_GENERATE_PATH = "/wikigenerate";
 const GITORGS_PATH = "/mulesoftorgs";
@@ -28,6 +28,8 @@ const WIKI_SPACE_KEYS_PATH = "/wikispace"; // Assuming this is the path for wiki
 const WIKI_SPACE_LIST_PATH = "/spacelist"; // Assuming this is the path for wiki space keys
 const GENERIC_WIKI_GENERATE_PATH = "/genericWiki";
 const LOGIN_PATH = "/user"; // Upstream login/user info path
+// Base for login calls (if not set, fall back to BASE_DOMAIN)
+//const WIKI_LOGIN = process.env.WIKI_LOGIN_BASE || BASE_DOMAIN;
 
 const app = express();
 const allowedOrigins = [
@@ -430,8 +432,8 @@ app.get('/genWikiLogin', async (req, res) => {
     // Append username from frontend as query param if provided
     const { username } = req.query || {};
     const loginUrl = username
-      ? `${WIKI_LOGIN}${LOGIN_PATH}?username=${encodeURIComponent(username)}`
-      : `${WIKI_LOGIN}${LOGIN_PATH}`;
+      ? `${BASE_DOMAIN}${LOGIN_PATH}?username=${encodeURIComponent(username)}`
+      : `${BASE_DOMAIN}${LOGIN_PATH}`;
 
     const response = await axios.get(loginUrl, {
       httpsAgent: httpsAgent,
@@ -443,11 +445,11 @@ app.get('/genWikiLogin', async (req, res) => {
     // Normalize a minimal response for FE
     const data = response.data || {};
     const displayName = data.displayName || data.user?.displayName || data.name || data.username;
-    res.status(200).json({ displayName, user: data });
+    res.status(200).json({ displayName });
   } catch (error) {
     const status = error.response?.status || 500;
     const details = error.response?.data || { message: error.message };
-    res.status(status).json({ error: 'Upstream login error', details });
+    res.status(status).json({ error: 'Unauthorized', details });
   }
 });
 
